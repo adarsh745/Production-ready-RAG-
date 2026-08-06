@@ -12,135 +12,61 @@ from app.rag.conversation_memory import (
 
 
 def chat(question: str, document_ids: Optional[List[str]] = None):
+    print("\n" + "=" * 100)
+    print(f"DEBUG LOG: QUESTION RECEIVED -> {question}")
+    print("=" * 100)
 
-    # ----------------------------------
     # Step 1 : Rewrite Question
-    # ----------------------------------
     standalone_question = rewrite_question(question)
+    print(f"\nDEBUG LOG: STANDALONE QUESTION -> {standalone_question}")
 
-    # ----------------------------------
     # Step 2 : Retrieve Documents
-    # ----------------------------------
     documents = retrieve_documents(
         standalone_question,
-        document_ids=document_ids
+        document_ids=document_ids,
+        k=8
     )
 
-    # ----------------------------------
-    # Debug : Print Retrieved Metadata
-    # ----------------------------------
-    print("\n" + "=" * 80)
-    print("DEBUG: Before Retrieval: Printing Every Retrieved Metadata")
-    print("=" * 80)
-    for i, doc in enumerate(documents, start=1):
-        print(f"Document {i}")
-        doc_meta = {
-            "document_id": str(doc.metadata.get("document_id") or ""),
-            "filename": str(doc.metadata.get("filename") or ""),
-            "page": int(doc.metadata.get("page") or 0),
-            "chunk_id": int(doc.metadata.get("chunk_id") or 0),
-        }
-        print(json.dumps(doc_meta, indent=4))
+    # Step 1 & 5 DEBUG LOGGING: Print every retrieved chunk with exact format
+    print("\n" + "=" * 100)
+    print("DEBUG LOG: RETRIEVED CHUNKS BEFORE LLM PROMPT")
+    print("=" * 100)
 
-    # ----------------------------------
-    # Step 3 : Collect Sources
-    # ----------------------------------
-    sources = []
+    for idx, doc in enumerate(documents, start=1):
+        print(f"\nRetrieved Chunk {idx}")
+        print("-" * 50)
+        print(doc.page_content)
+        print("-" * 50)
+        print("Metadata")
+        print(f"page: {doc.metadata.get('page') or doc.metadata.get('page_number', 'N/A')}")
+        print(f"chunk_id: {doc.metadata.get('chunk_id', idx)}")
+        print(f"document_id: {doc.metadata.get('document_id', 'N/A')}")
+        print(f"filename: {doc.metadata.get('filename', 'N/A')}")
+        print("=" * 100)
 
-    seen = set()
-
-    for doc in documents:
-
-        doc_id = str(doc.metadata.get("document_id") or "")
-        filename = str(doc.metadata.get("filename") or "")
-        page = int(doc.metadata.get("page") or 0)
-        chunk_id = int(doc.metadata.get("chunk_id") or 0)
-
-        source = {
-            "document_id": doc_id,
-            "filename": filename,
-            "page": page,
-            "chunk_id": chunk_id,
-        }
-
-        # Remove duplicates based on document_id + page + chunk_id
-        key = (
-            doc_id,
-            page,
-            chunk_id,
-        )
-
-        if key not in seen:
-            seen.add(key)
-            sources.append(source)
-
-    # Return only top 3 sources
-    sources = sources[:3]
-
-    # ----------------------------------
-    # Step 4 : Build Prompt
-    # ----------------------------------
-    prompt = build_prompt(question, documents)
-
-    # ----------------------------------
-    # Step 5 : Generate Answer
-    # ----------------------------------
-    answer = generate_answer(prompt)
-
-    # ----------------------------------
-    # Step 6 : Save Conversation
-    # ----------------------------------
-    add_user_message(question)
-    add_ai_message(answer)
-
-    # ----------------------------------
-    # Step 7 : Return Answer + Sources
-    # ----------------------------------
-    return {
-        "answer": answer,
-        "sources": sources
-    }
-
-
-async def chat_stream(question: str, document_ids: Optional[List[str]] = None):
-
-    print("\n" + "=" * 80)
-    print("Retrieval Started")
-    print("=" * 80)
-
-    # ----------------------------------
-    # Step 1 : Rewrite Question
-    # ----------------------------------
-    standalone_question = rewrite_question(question)
-
-    # ----------------------------------
-    # Step 2 : Retrieve Documents
-    # ----------------------------------
-    documents = retrieve_documents(
-        standalone_question,
-        document_ids=document_ids
-    )
-
-    print("Hybrid Search Completed")
-    print("Cross Encoder Completed")
-
-    # ----------------------------------
-    # Step 3 : Collect Sources
-    # ----------------------------------
+    # Step 3 : Collect Sources with full chunk text content & URL
     sources = []
     seen = set()
 
     for doc in documents:
         doc_id = str(doc.metadata.get("document_id") or "")
         filename = str(doc.metadata.get("filename") or "")
-        page = int(doc.metadata.get("page") or 0)
+        filepath = str(doc.metadata.get("filepath") or "")
+        raw_page = int(doc.metadata.get("page") or doc.metadata.get("page_number") or 1)
+        page = raw_page if raw_page > 0 else 1
         chunk_id = int(doc.metadata.get("chunk_id") or 0)
+
+        url = f"/uploads/{filename}" if filename else (f"/api/documents/{doc_id}/file" if doc_id else "")
 
         source = {
             "document_id": doc_id,
             "filename": filename,
+            "filepath": filepath,
+            "url": url,
             "page": page,
             "chunk_id": chunk_id,
+            "chunk_text": doc.page_content,
+            "content": doc.page_content,
         }
 
         key = (doc_id, page, chunk_id)
@@ -150,18 +76,103 @@ async def chat_stream(question: str, document_ids: Optional[List[str]] = None):
 
     sources = sources[:3]
 
-    # ----------------------------------
-    # Step 4 : Build Prompt & Save User Message
-    # ----------------------------------
+    # Step 4 : Build Prompt & Print Final Context & Prompt
     prompt = build_prompt(question, documents)
-    add_user_message(question)
 
-    # ----------------------------------
-    # Step 5 : Stream LLM Tokens
-    # ----------------------------------
-    print("\n" + "=" * 80)
-    print("Streaming Started")
-    print("=" * 80)
+    print("\n" + "=" * 100)
+    print("DEBUG LOG: FINAL PROMPT SENT TO LLM")
+    print("=" * 100)
+    print(prompt)
+    print("=" * 100)
+
+    # Step 5 : Generate Answer
+    answer = generate_answer(prompt)
+
+    print("\n" + "=" * 100)
+    print("DEBUG LOG: LLM RESPONSE GENERATED")
+    print("=" * 100)
+    print(answer)
+    print("=" * 100)
+
+    # Step 6 : Save Conversation
+    add_user_message(question)
+    add_ai_message(answer)
+
+    return {
+        "answer": answer,
+        "sources": sources
+    }
+
+
+async def chat_stream(question: str, document_ids: Optional[List[str]] = None):
+    print("\n" + "=" * 100)
+    print(f"DEBUG LOG STREAM: QUESTION RECEIVED -> {question}")
+    print("=" * 100)
+
+    standalone_question = rewrite_question(question)
+
+    documents = retrieve_documents(
+        standalone_question,
+        document_ids=document_ids,
+        k=8
+    )
+
+    print("\n" + "=" * 100)
+    print("DEBUG LOG STREAM: RETRIEVED CHUNKS BEFORE LLM PROMPT")
+    print("=" * 100)
+
+    for idx, doc in enumerate(documents, start=1):
+        print(f"\nRetrieved Chunk {idx}")
+        print("-" * 50)
+        print(doc.page_content)
+        print("-" * 50)
+        print("Metadata")
+        print(f"page: {doc.metadata.get('page') or doc.metadata.get('page_number', 'N/A')}")
+        print(f"chunk_id: {doc.metadata.get('chunk_id', idx)}")
+        print(f"document_id: {doc.metadata.get('document_id', 'N/A')}")
+        print(f"filename: {doc.metadata.get('filename', 'N/A')}")
+        print("=" * 100)
+
+    sources = []
+    seen = set()
+
+    for doc in documents:
+        doc_id = str(doc.metadata.get("document_id") or "")
+        filename = str(doc.metadata.get("filename") or "")
+        filepath = str(doc.metadata.get("filepath") or "")
+        raw_page = int(doc.metadata.get("page") or doc.metadata.get("page_number") or 1)
+        page = raw_page if raw_page > 0 else 1
+        chunk_id = int(doc.metadata.get("chunk_id") or 0)
+
+        url = f"/uploads/{filename}" if filename else (f"/api/documents/{doc_id}/file" if doc_id else "")
+
+        source = {
+            "document_id": doc_id,
+            "filename": filename,
+            "filepath": filepath,
+            "url": url,
+            "page": page,
+            "chunk_id": chunk_id,
+            "chunk_text": doc.page_content,
+            "content": doc.page_content,
+        }
+
+        key = (doc_id, page, chunk_id)
+        if key not in seen:
+            seen.add(key)
+            sources.append(source)
+
+    sources = sources[:3]
+
+    prompt = build_prompt(question, documents)
+
+    print("\n" + "=" * 100)
+    print("DEBUG LOG STREAM: FINAL PROMPT SENT TO LLM")
+    print("=" * 100)
+    print(prompt)
+    print("=" * 100)
+
+    add_user_message(question)
 
     full_answer_tokens = []
     total_tokens = 0
@@ -179,13 +190,12 @@ async def chat_stream(question: str, document_ids: Optional[List[str]] = None):
     complete_answer = "".join(full_answer_tokens)
     add_ai_message(complete_answer)
 
-    print("\n" + "=" * 80)
-    print("Streaming Finished")
+    print("\n" + "=" * 100)
+    print("DEBUG LOG STREAM: LLM RESPONSE GENERATED")
+    print("=" * 100)
+    print(complete_answer)
     print(f"Total Tokens Generated: {total_tokens}")
-    print("=" * 80)
+    print("=" * 100)
 
-    # ----------------------------------
-    # Step 6 : Send Final Metadata Event
-    # ----------------------------------
     metadata_json = json.dumps({"sources": sources})
     yield f"event: metadata\ndata: {metadata_json}\n\n"

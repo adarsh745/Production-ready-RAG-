@@ -1,262 +1,406 @@
-import React, { createContext, useState, useEffect } from 'react';
-import { MODELS, WORKSPACES, INITIAL_CHAT_HISTORY, MOCK_KNOWLEDGE_BASE_DOCS } from '../utils/constants';
+import React, { createContext, useState, useEffect, useCallback } from 'react';
+import { MODELS, WORKSPACES } from '../utils/constants';
 import { chatService } from '../services/chatService';
+import { chatHistoryService } from '../services/chatHistoryService';
+import { documentService } from '../services/documentService';
+import { useAuth } from '../hooks/useAuth';
+import PdfDrawer from '../components/pdf/PdfDrawer';
 
 export const ChatContext = createContext();
 
+/**
+ * Group sessions into Today, Yesterday, Last 7 Days, and Older categories
+ */
+export const groupSessionsByDate = (sessions = []) => {
+  const groups = {
+    today: [],
+    yesterday: [],
+    last7Days: [],
+    older: [],
+  };
+
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const yesterdayStart = todayStart - 86400000;
+  const sevenDaysAgo = todayStart - 86400000 * 6;
+
+  sessions.forEach((session) => {
+    const time = new Date(session.updated_at || session.created_at).getTime();
+    if (time >= todayStart) {
+      groups.today.push(session);
+    } else if (time >= yesterdayStart) {
+      groups.yesterday.push(session);
+    } else if (time >= sevenDaysAgo) {
+      groups.last7Days.push(session);
+    } else {
+      groups.older.push(session);
+    }
+  });
+
+  return groups;
+};
+
 export const ChatProvider = ({ children }) => {
+  const { user, isAuthenticated } = useAuth();
+
   const [messages, setMessages] = useState([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedModel, setSelectedModel] = useState(MODELS[0]);
   const [selectedWorkspace, setSelectedWorkspace] = useState(WORKSPACES[0]);
   const [isWebSearchEnabled, setIsWebSearchEnabled] = useState(false);
-  const [activeChatId, setActiveChatId] = useState('chat-1');
-  const [chatHistory, setChatHistory] = useState(INITIAL_CHAT_HISTORY);
+
+  const [activeChatId, setActiveChatId] = useState(null);
+  const [chatHistory, setChatHistory] = useState([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [isRightPanelOpen, setIsRightPanelOpen] = useState(false);
   const [selectedSource, setSelectedSource] = useState(null);
   const [isVoiceActive, setIsVoiceActive] = useState(false);
 
-  // Map to store messages for each chat session
-  const [chatMessagesMap, setChatMessagesMap] = useState({
-    'chat-1': [
-      {
-        id: 'm1',
-        role: 'user',
-        content: 'Tell me about our current Q3 goal organization strategy.',
-        timestamp: new Date(Date.now() - 3600000 * 2).toISOString()
-      },
-      {
-        id: 'm2',
-        role: 'assistant',
-        content: `Sure! Our main focus for Q3 is the structural organization of our multi-agent RAG pipelines [1]. We want to ensure that retrieval latency remains under **200ms** by embedding caching systems.
+  // Multi-Document Chat Selection State
+  const [selectedDocumentIds, setSelectedDocumentIds] = useState([]);
+  const [availableDocuments, setAvailableDocuments] = useState([]);
 
-Key pillars from the Vision Grid [2] spec:
-1. **Caching Optimizations:** Storing localized embedding queries.
-2. **Mind Threads Integration:** Creating topological maps of related files to query across namespaces [3].
+  // PDF Viewer Drawer State
+  const [isPdfDrawerOpen, setIsPdfDrawerOpen] = useState(false);
+  const [selectedPdfSource, setSelectedPdfSource] = useState(null);
 
-Let me know if you'd like to dive into any of the associated PDFs!`,
-        timestamp: new Date(Date.now() - 3600000 * 2 + 60000).toISOString(),
-        sources: [MOCK_KNOWLEDGE_BASE_DOCS[0], MOCK_KNOWLEDGE_BASE_DOCS[1], MOCK_KNOWLEDGE_BASE_DOCS[2]]
-      }
-    ],
-    'chat-2': [
-      {
-        id: 'm3',
-        role: 'user',
-        content: 'Do we have a document detailing the intelligence retrieval metrics?',
-        timestamp: new Date(Date.now() - 3600000 * 5).toISOString()
-      },
-      {
-        id: 'm4',
-        role: 'assistant',
-        content: `Yes, we have the **Intelligence Strategy Brief** [1] which details our vector retrieval guidelines. We aim to achieve over **90%** metadata lookup accuracy by partitioning our namespace vectors according to user workspaces.`,
-        timestamp: new Date(Date.now() - 3600000 * 5 + 40000).toISOString(),
-        sources: [MOCK_KNOWLEDGE_BASE_DOCS[1]]
-      }
-    ]
-  });
+  const openPdfViewer = (sourceDoc) => {
+    setSelectedPdfSource(sourceDoc);
+    setIsPdfDrawerOpen(true);
+  };
 
-  // Sync messages list when active chat changes
+  const closePdfViewer = () => {
+    setIsPdfDrawerOpen(false);
+    setSelectedPdfSource(null);
+  };
+
+  // Fetch all available documents for multi-document selector
+  const loadAvailableDocuments = useCallback(async () => {
+    if (!isAuthenticated) return;
+    try {
+      const data = await documentService.getDocuments();
+      setAvailableDocuments(data.documents || []);
+    } catch (err) {
+      console.error('Failed to load available documents:', err);
+    }
+  }, [isAuthenticated]);
+
   useEffect(() => {
-    if (activeChatId && chatMessagesMap[activeChatId]) {
-      setMessages(chatMessagesMap[activeChatId]);
-      // If the chat has messages with sources, open right panel on desktop
-      const lastMessage = chatMessagesMap[activeChatId][chatMessagesMap[activeChatId].length - 1];
-      if (lastMessage && lastMessage.sources && lastMessage.sources.length > 0) {
-        setIsRightPanelOpen(true);
-      } else {
-        setIsRightPanelOpen(false);
+    loadAvailableDocuments();
+  }, [loadAvailableDocuments]);
+
+  // Multi-Document Selection Controls
+  const toggleSelectDocument = (docId) => {
+    setSelectedDocumentIds((prev) =>
+      prev.includes(docId) ? prev.filter((id) => id !== docId) : [...prev, docId]
+    );
+  };
+
+  const selectAllDocuments = () => {
+    setSelectedDocumentIds(availableDocuments.map((d) => d.id));
+  };
+
+  const clearSelectedDocuments = () => {
+    setSelectedDocumentIds([]);
+  };
+
+  // Fetch all chat sessions from PostgreSQL backend on mount / auth change
+  const loadChatSessions = useCallback(async () => {
+    if (!isAuthenticated) {
+      setChatHistory([]);
+      setActiveChatId(null);
+      setMessages([]);
+      return;
+    }
+
+    setIsLoadingHistory(true);
+    try {
+      const sessions = await chatHistoryService.getSessions();
+      setChatHistory(sessions || []);
+
+      if (sessions && sessions.length > 0) {
+        setActiveChatId((current) => current || sessions[0].id);
       }
-    } else {
+    } catch (err) {
+      console.error('Failed to load user chat history from PostgreSQL:', err);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    loadChatSessions();
+  }, [loadChatSessions]);
+
+  // Load messages for active chat session directly from PostgreSQL
+  useEffect(() => {
+    if (!activeChatId || !isAuthenticated) {
       setMessages([]);
       setIsRightPanelOpen(false);
+      return;
     }
-    setSelectedSource(null);
-  }, [activeChatId]);
 
-  // Send message action
+    let isMounted = true;
+    const fetchSessionMessages = async () => {
+      try {
+        const sessionData = await chatHistoryService.getSessionDetails(activeChatId);
+        if (isMounted && sessionData) {
+          const loadedMsgs = (sessionData.messages || []).map((m) => ({
+            id: m.id,
+            role: m.role,
+            content: m.content,
+            sources: m.sources || [],
+            evaluation: m.evaluation,
+            timestamp: m.created_at,
+          }));
+
+          setMessages(loadedMsgs);
+
+          const lastMsg = loadedMsgs[loadedMsgs.length - 1];
+          if (lastMsg && lastMsg.sources && lastMsg.sources.length > 0) {
+            setIsRightPanelOpen(true);
+          } else {
+            setIsRightPanelOpen(false);
+          }
+        }
+      } catch (err) {
+        console.error(`Failed to load messages for session ${activeChatId}:`, err);
+      }
+    };
+
+    fetchSessionMessages();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activeChatId, isAuthenticated]);
+
+  const createNewChat = async () => {
+    if (!isAuthenticated) return;
+    try {
+      const newSession = await chatHistoryService.createSession('New Chat');
+      setChatHistory((prev) => [newSession, ...prev]);
+      setActiveChatId(newSession.id);
+      setMessages([]);
+      return newSession;
+    } catch (err) {
+      console.error('Failed to create new chat session in PostgreSQL:', err);
+    }
+  };
+
+  const selectChat = (id) => {
+    setActiveChatId(id);
+  };
+
+  const renameChat = async (id, newTitle) => {
+    if (!id || !newTitle.trim()) return;
+    try {
+      const updated = await chatHistoryService.renameSession(id, newTitle.trim());
+      setChatHistory((prev) =>
+        prev.map((ch) => (ch.id === id ? { ...ch, title: updated.title } : ch))
+      );
+    } catch (err) {
+      console.error(`Failed to rename chat session ${id}:`, err);
+    }
+  };
+
+  const deleteChat = async (id) => {
+    if (!id) return;
+    try {
+      await chatHistoryService.deleteSession(id);
+      const updatedHistory = chatHistory.filter((ch) => ch.id !== id);
+      setChatHistory(updatedHistory);
+
+      if (activeChatId === id) {
+        if (updatedHistory.length > 0) {
+          setActiveChatId(updatedHistory[0].id);
+        } else {
+          setActiveChatId(null);
+          setMessages([]);
+        }
+      }
+    } catch (err) {
+      console.error(`Failed to delete chat session ${id}:`, err);
+    }
+  };
+
   const sendMessage = async (content) => {
     if (!content.trim() || isGenerating) return;
 
-    const userMsgId = `user-${Date.now()}`;
-    const assistantMsgId = `assistant-${Date.now()}`;
+    let sessionId = activeChatId;
+
+    if (!sessionId) {
+      const newSession = await createNewChat();
+      if (newSession) {
+        sessionId = newSession.id;
+      } else {
+        return;
+      }
+    }
+
+    const tempUserMsgId = `temp-user-${Date.now()}`;
+    const tempAssistantMsgId = `temp-assistant-${Date.now()}`;
     const timestamp = new Date().toISOString();
 
-    const newUserMessage = {
-      id: userMsgId,
+    const userMessageObj = {
+      id: tempUserMsgId,
       role: 'user',
       content,
       timestamp,
-      files: [...uploadedFiles]
+      files: [...uploadedFiles],
     };
 
-    // Update active chat messages
-    const updatedMessages = [...messages, newUserMessage];
-    setMessages(updatedMessages);
-    setChatMessagesMap(prev => ({
-      ...prev,
-      [activeChatId]: updatedMessages
-    }));
+    const assistantPlaceholderObj = {
+      id: tempAssistantMsgId,
+      role: 'assistant',
+      content: '',
+      timestamp,
+      sources: [],
+    };
 
-    // Clear uploads
+    setMessages((prev) => [...prev, userMessageObj, assistantPlaceholderObj]);
     setUploadedFiles([]);
     setIsGenerating(true);
 
-    // Add empty placeholder for assistant streaming
-    const assistantPlaceholder = {
-      id: assistantMsgId,
-      role: 'assistant',
-      content: '',
-      timestamp: new Date().toISOString(),
-      sources: []
-    };
-
-    setMessages(prev => [...prev, assistantPlaceholder]);
-
     try {
-      const responseMeta = await chatService.generateResponse(content, (streamedText) => {
-        // Stream chunk updates
-        setMessages(prev => prev.map(msg => 
-          msg.id === assistantMsgId ? { ...msg, content: streamedText } : msg
-        ));
+      const savedUserMsg = await chatHistoryService.addMessage(sessionId, {
+        role: 'user',
+        content,
       });
 
-      // Update final assistant message with sources
-      setMessages(prev => {
-        const finalMessages = prev.map(msg => 
-          msg.id === assistantMsgId ? { 
-            ...msg, 
-            sources: responseMeta.sources,
-            timestamp: new Date().toISOString()
-          } : msg
-        );
-        
-        // Save back to session map
-        setChatMessagesMap(m => ({
-          ...m,
-          [activeChatId]: finalMessages
-        }));
+      setChatHistory((prev) =>
+        prev.map((ch) => {
+          if (ch.id === sessionId && ch.title === 'New Chat') {
+            const autoTitle = content.length > 30 ? `${content.substring(0, 30)}...` : content;
+            return { ...ch, title: autoTitle };
+          }
+          return ch;
+        })
+      );
 
-        return finalMessages;
+      // Pass selectedDocumentIds to API request for multi-document context filtering
+      const responseMeta = await chatService.generateResponse(
+        content,
+        (streamedText) => {
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === tempAssistantMsgId ? { ...msg, content: streamedText } : msg
+            )
+          );
+        },
+        selectedDocumentIds
+      );
+
+      const finalAnswerText = responseMeta.answer || "I couldn't find the answer in the uploaded documents.";
+      const finalSources = responseMeta.sources || [];
+
+      const savedAssistantMsg = await chatHistoryService.addMessage(sessionId, {
+        role: 'assistant',
+        content: finalAnswerText,
+        sources: finalSources,
       });
 
-      // Open sources panel if we retrieved documents
-      if (responseMeta.sources && responseMeta.sources.length > 0) {
+      setMessages((prev) =>
+        prev.map((msg) => {
+          if (msg.id === tempUserMsgId) return { ...msg, id: savedUserMsg.id };
+          if (msg.id === tempAssistantMsgId)
+            return {
+              ...msg,
+              id: savedAssistantMsg.id,
+              content: finalAnswerText,
+              sources: finalSources,
+              timestamp: savedAssistantMsg.created_at,
+            };
+          return msg;
+        })
+      );
+
+      if (finalSources.length > 0) {
         setIsRightPanelOpen(true);
       }
-
     } catch (err) {
-      console.error('Error generating AI response:', err);
-      setMessages(prev => prev.map(msg => 
-        msg.id === assistantMsgId ? { 
-          ...msg, 
-          content: 'Apologies, I encountered an error searching the workspace indexes. Please try again.' 
-        } : msg
-      ));
+      console.error('Error in sendMessage flow:', err);
+      const errorText =
+        err.response?.data?.detail ||
+        'Apologies, I encountered an error communicating with the backend RAG engine.';
+
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === tempAssistantMsgId ? { ...msg, content: errorText } : msg
+        )
+      );
     } finally {
       setIsGenerating(false);
     }
   };
 
-  // Create new chat session
-  const createNewChat = () => {
-    const newId = `chat-${Date.now()}`;
-    const newChat = {
-      id: newId,
-      title: 'New Chat Spec',
-      active: true,
-      pinned: false
-    };
-
-    // Deactivate others
-    setChatHistory(prev => prev.map(ch => ({ ...ch, active: false })).concat(newChat));
-    setChatMessagesMap(prev => ({
-      ...prev,
-      [newId]: []
-    }));
-    setActiveChatId(newId);
-  };
-
-  // Select existing chat
-  const selectChat = (id) => {
-    setChatHistory(prev => prev.map(ch => ({
-      ...ch,
-      active: ch.id === id
-    })));
-    setActiveChatId(id);
-  };
-
-  // Delete chat session
-  const deleteChat = (id) => {
-    setChatHistory(prev => prev.filter(ch => ch.id !== id));
-    setChatMessagesMap(prev => {
-      const copy = { ...prev };
-      delete copy[id];
-      return copy;
-    });
-
-    if (activeChatId === id) {
-      const remaining = chatHistory.filter(ch => ch.id !== id);
-      if (remaining.length > 0) {
-        selectChat(remaining[remaining.length - 1].id);
-      } else {
-        setActiveChatId(null);
-        setMessages([]);
-      }
-    }
-  };
-
-  // Toggle chat pinning
-  const togglePinChat = (id) => {
-    setChatHistory(prev => prev.map(ch => 
-      ch.id === id ? { ...ch, pinned: !ch.pinned } : ch
-    ));
-  };
-
-  // File Upload Simulations
   const uploadFile = (file) => {
     const newFile = {
       id: `file-${Date.now()}`,
       name: file.name,
       size: `${(file.size / 1024).toFixed(1)} KB`,
-      type: file.type
+      type: file.type,
     };
-    setUploadedFiles(prev => [...prev, newFile]);
+    setUploadedFiles((prev) => [...prev, newFile]);
   };
 
   const removeUploadedFile = (id) => {
-    setUploadedFiles(prev => prev.filter(f => f.id !== id));
+    setUploadedFiles((prev) => prev.filter((f) => f.id !== id));
   };
 
   return (
-    <ChatContext.Provider value={{
-      messages,
-      isGenerating,
-      selectedModel,
-      setSelectedModel,
-      selectedWorkspace,
-      setSelectedWorkspace,
-      isWebSearchEnabled,
-      setIsWebSearchEnabled,
-      activeChatId,
-      chatHistory,
-      uploadedFiles,
-      isRightPanelOpen,
-      setIsRightPanelOpen,
-      selectedSource,
-      setSelectedSource,
-      isVoiceActive,
-      setIsVoiceActive,
-      sendMessage,
-      createNewChat,
-      selectChat,
-      deleteChat,
-      togglePinChat,
-      uploadFile,
-      removeUploadedFile
-    }}>
+    <ChatContext.Provider
+      value={{
+        messages,
+        isGenerating,
+        selectedModel,
+        setSelectedModel,
+        selectedWorkspace,
+        setSelectedWorkspace,
+        isWebSearchEnabled,
+        setIsWebSearchEnabled,
+        activeChatId,
+        chatHistory,
+        isLoadingHistory,
+        uploadedFiles,
+        isRightPanelOpen,
+        setIsRightPanelOpen,
+        selectedSource,
+        setSelectedSource,
+        isVoiceActive,
+        setIsVoiceActive,
+        isPdfDrawerOpen,
+        selectedPdfSource,
+        openPdfViewer,
+        closePdfViewer,
+        selectedDocumentIds,
+        availableDocuments,
+        toggleSelectDocument,
+        selectAllDocuments,
+        clearSelectedDocuments,
+        loadAvailableDocuments,
+        sendMessage,
+        createNewChat,
+        selectChat,
+        renameChat,
+        deleteChat,
+        uploadFile,
+        removeUploadedFile,
+        loadChatSessions,
+      }}
+    >
       {children}
+
+      {/* Persistent PDF Viewer Drawer */}
+      <PdfDrawer
+        isOpen={isPdfDrawerOpen}
+        onClose={closePdfViewer}
+        sourceDoc={selectedPdfSource}
+      />
     </ChatContext.Provider>
   );
 };
+
+export default ChatProvider;

@@ -2,6 +2,7 @@ import React from 'react';
 import GlassCard from '../components/ui/GlassCard';
 import GlowButton from '../components/ui/GlowButton';
 import GradientText from '../components/ui/GradientText';
+import FileUpload from '../components/FileUpload';
 import { useChat } from '../hooks/useChat';
 import { 
   Shield, Sparkles, HardDrive, Sliders, CheckCircle2, 
@@ -98,6 +99,15 @@ export const Settings = () => {
                 <p className="text-[8px] text-muted-app uppercase tracking-wider mt-1">Status</p>
               </div>
             </div>
+          </GlassCard>
+
+          {/* Section 3: 3D File Upload Component */}
+          <GlassCard className="space-y-4 p-5">
+            <div className="flex items-center gap-2 pb-2 border-b border-border-app">
+              <Sparkles size={16} className="text-primary-app animate-pulse" />
+              <span className="text-xs font-bold text-text-app uppercase tracking-wider">Upload Documents to Vector Space</span>
+            </div>
+            <FileUpload />
           </GlassCard>
 
         </div>

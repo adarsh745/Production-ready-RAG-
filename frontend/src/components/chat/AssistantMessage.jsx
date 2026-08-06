@@ -2,21 +2,20 @@ import React from 'react';
 import Avatar from '../common/Avatar';
 import { useChat } from '../../hooks/useChat';
 import { formatTime } from '../../utils/helpers';
-import { FileText, ExternalLink, Library, Layers } from 'lucide-react';
+import { FileText, ExternalLink, Library } from 'lucide-react';
+import TypingIndicator from './TypingIndicator';
 
 export const AssistantMessage = ({ message }) => {
-  const { content, timestamp, sources, id } = message;
-  const { setIsRightPanelOpen, setSelectedSource } = useChat();
+  const { content, timestamp, sources } = message;
+  const { setSelectedSource, openPdfViewer } = useChat();
 
   // Simple Markdown & Citation parser
   const renderFormattedContent = (text) => {
     if (!text) return null;
 
-    // Split text by code blocks first
     const parts = text.split(/(```[\s\S]*?```)/g);
 
     return parts.map((part, index) => {
-      // If code block
       if (part.startsWith('```')) {
         const codeLines = part.slice(3, -3).trim().split('\n');
         const language = codeLines[0] && !codeLines[0].startsWith(' ') ? codeLines[0] : 'code';
@@ -40,36 +39,21 @@ export const AssistantMessage = ({ message }) => {
         );
       }
 
-      // Standard text styling: Bolds, Lists, and Citations
       let formattedText = part;
-      
-      // Split into paragraphs/newlines
       const lines = formattedText.split('\n');
       
       return lines.map((line, lIndex) => {
         let isBullet = false;
         let lineContent = line;
 
-        // Check if list item
         if (line.startsWith('* ') || line.startsWith('- ')) {
           isBullet = true;
           lineContent = line.substring(2);
         } else if (line.match(/^\d+\.\s/)) {
           isBullet = true;
-          // keeps the number
         }
 
-        // Parse Bold expressions (**text**)
-        const boldRegex = /\*\*(.*?)\*\*/g;
-        const inlineCodeRegex = /`(.*?)`/g;
-        const citationRegex = /\[(\d+(?:,\s*\d+)*)\]/g; // matches [1], [2], [1, 2]
-
-        // Replace bold and inline code with styled spans in a helper function
         const parseInlineElements = (str) => {
-          const elements = [];
-          let lastIndex = 0;
-          
-          // Combine regex searches or simply run index match splits
           const tokenRegex = /(\*\*.*?\*\*|`.*?`|\[\d+(?:,\s*\d+)*\])/g;
           const tokens = str.split(tokenRegex);
 
@@ -81,7 +65,6 @@ export const AssistantMessage = ({ message }) => {
               return <code key={tIdx} className="px-1.5 py-0.5 rounded bg-border-app text-accent-app font-mono text-[11px]">{token.slice(1, -1)}</code>;
             }
             if (token.startsWith('[') && token.endsWith(']')) {
-              // Extract citation numbers
               const citationsStr = token.slice(1, -1);
               const citations = citationsStr.split(',').map(n => parseInt(n.trim(), 10));
 
@@ -96,11 +79,11 @@ export const AssistantMessage = ({ message }) => {
                         onClick={() => {
                           if (sourceDoc) {
                             setSelectedSource(sourceDoc);
-                            setIsRightPanelOpen(true);
+                            if (openPdfViewer) openPdfViewer(sourceDoc);
                           }
                         }}
                         className="inline-flex items-center justify-center w-4.5 h-4.5 rounded-md bg-primary-app/15 border border-primary-app/20 text-[9px] font-bold text-primary-app hover:bg-primary-app/25 hover:border-primary-app/40 hover:text-white transition-all shadow-[0_0_8px_rgba(124,58,237,0.1)] cursor-pointer"
-                        title={sourceDoc ? `View citation: ${sourceDoc.title}` : 'View Citation'}
+                        title={sourceDoc ? `Open PDF Viewer: ${sourceDoc.filename || sourceDoc.title} (Page ${sourceDoc.page || 1})` : 'Open PDF Source'}
                       >
                         {num}
                       </button>
@@ -149,40 +132,52 @@ export const AssistantMessage = ({ message }) => {
         </div>
 
         {/* Content Bubble */}
-        <div className="px-4 py-3 rounded-2xl bg-card-app/40 border border-border-app text-left select-text shadow-sm selection:bg-primary-app/30">
-          {renderFormattedContent(content)}
+        <div className="px-4 py-3 rounded-2xl bg-card-app/60 border border-border-app text-left select-text shadow-sm selection:bg-primary-app/30">
+          {!content ? (
+            <div className="flex items-center gap-2.5 text-muted-app text-xs py-1">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-app opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-primary-app"></span>
+              </span>
+              <span className="text-xs text-text-app/80 font-mono animate-pulse">
+                Searching vector database & generating answer...
+              </span>
+            </div>
+          ) : (
+            renderFormattedContent(content)
+          )}
 
           {/* Sources Quick Grid at bottom of response */}
           {sources && sources.length > 0 && (
             <div className="mt-4 pt-3.5 border-t border-border-app space-y-2">
               <div className="flex items-center gap-1.5 text-[9px] font-bold text-muted-app uppercase tracking-wider select-none">
                 <Library size={10} className="text-primary-app" />
-                <span>Reference Sources ({sources.length})</span>
+                <span>Reference Sources ({sources.length}) • Click to Open PDF Viewer</span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 select-none">
                 {sources.map((src, index) => (
                   <div
-                    key={src.id}
+                    key={src.document_id || index}
                     onClick={() => {
                       setSelectedSource(src);
-                      setIsRightPanelOpen(true);
+                      if (openPdfViewer) openPdfViewer(src);
                     }}
-                    className="flex items-center justify-between p-2 rounded-xl bg-card-app border border-border-app hover:border-primary-app/30 transition-all duration-300 cursor-pointer shadow-sm group/card"
+                    className="flex items-center justify-between p-2 rounded-xl bg-card-app border border-border-app hover:border-primary-app/40 transition-all duration-300 cursor-pointer shadow-sm group/card"
                   >
                     <div className="flex items-center gap-2 truncate">
                       <div className="p-1.5 rounded-lg bg-bg-app border border-border-app text-muted-app">
                         <FileText size={11} className="text-primary-app" />
                       </div>
                       <div className="flex flex-col truncate">
-                        <span className="text-[10px] font-semibold text-text-app truncate group-hover/card:text-text-app dark:group-hover/card:text-white">
-                          {src.title}
+                        <span className="text-[10px] font-semibold text-text-app truncate group-hover/card:text-primary-app transition-colors">
+                          {src.filename || src.title || `Source ${index + 1}`}
                         </span>
                         <span className="text-[8px] text-muted-app">
-                          Similarity: {Math.round(src.similarity * 100)}% • Page {src.page}
+                          Page {src.page || 1} • Chunk {src.chunk_id || (index + 1)}
                         </span>
                       </div>
                     </div>
-                    <ExternalLink size={10} className="text-muted-app/60 group-hover/card:text-text-app dark:group-hover/card:text-white shrink-0 ml-1" />
+                    <ExternalLink size={10} className="text-muted-app/60 group-hover/card:text-primary-app shrink-0 ml-1 transition-colors" />
                   </div>
                 ))}
               </div>

@@ -35,9 +35,9 @@ export const MainLayout = ({ children }) => {
           </main>
 
           {/* Right Retrieved Sources Panel */}
-          {currentHasSources && isRightPanelOpen && (
-            <SourceList />
-          )}
+          {/* {currentHasSources && isRightPanelOpen && ( */}
+          {/* <SourceList /> */}
+          {/* )} */}
         </div>
 
       </div>

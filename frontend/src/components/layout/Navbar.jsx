@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useChat } from '../../hooks/useChat';
 import { useSidebar } from '../../hooks/useSidebar';
 import { useTheme } from '../../hooks/useTheme';
+import { useAuth } from '../../hooks/useAuth';
 import { MODELS } from '../../utils/constants';
 import Badge from '../common/Badge';
 import Tooltip from '../common/Tooltip';
@@ -17,6 +18,7 @@ export const Navbar = () => {
   const { selectedModel, setSelectedModel } = useChat();
   const { toggleMobileSidebar, toggleSidebar } = useSidebar();
   const { theme, toggleTheme, isDark } = useTheme();
+  const { user } = useAuth();
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
 
   return (
@@ -123,11 +125,16 @@ export const Navbar = () => {
             </motion.button>
           </Tooltip>
 
-          {/* Account/Wallet Pill */}
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.08] text-xs font-medium text-text-app shadow-inner">
-            {/* sparkles icon */}
+          {/* Account/User Pill */}
+          <div
+            onClick={() => navigate('/profile')}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.08] hover:border-primary-app/40 text-xs font-medium text-text-app shadow-inner cursor-pointer transition-all active:scale-95"
+            title="Open Profile Page"
+          >
             <Sparkles size={11} className="text-primary-app animate-pulse-slow" />
-            <span className="text-muted-app font-mono text-[10px]">30asdp...Deslo</span>
+            <span className="text-muted-app font-medium text-[11px]">
+              {user ? (user.full_name || user.email) : 'Guest User'}
+            </span>
           </div>
         </div>
 

@@ -2,19 +2,29 @@ import React, { createContext, useState, useEffect } from 'react';
 
 export const ThemeContext = createContext();
 
+const ACCENT_COLORS = {
+  purple: { primary: '#7C3AED', glow: 'rgba(124,58,237,0.4)', name: 'Purple' },
+  blue: { primary: '#3B82F6', glow: 'rgba(59,130,246,0.4)', name: 'Blue' },
+  pink: { primary: '#EC4899', glow: 'rgba(236,72,153,0.4)', name: 'Pink' },
+  cyan: { primary: '#06B6D4', glow: 'rgba(6,182,212,0.4)', name: 'Cyan' },
+  emerald: { primary: '#10B981', glow: 'rgba(16,185,129,0.4)', name: 'Emerald' },
+  orange: { primary: '#F97316', glow: 'rgba(249,115,22,0.4)', name: 'Orange' },
+};
+
 export const ThemeProvider = ({ children }) => {
-  // Read initial theme from localStorage or system preferences
   const [theme, setThemeState] = useState(() => {
     const saved = localStorage.getItem('theme');
     if (saved) return saved;
-    
     const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     return systemPrefersDark ? 'dark' : 'light';
   });
 
+  const [accentColor, setAccentColorState] = useState(() => {
+    return localStorage.getItem('accentColor') || 'purple';
+  });
+
   const isDark = theme === 'dark';
 
-  // Apply theme class to document element and save to localStorage
   useEffect(() => {
     const root = window.document.documentElement;
     if (theme === 'dark') {
@@ -25,22 +35,17 @@ export const ThemeProvider = ({ children }) => {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
-  // Handle system preference changes dynamically
+  // Apply CSS custom properties when accent color changes
   useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handleChange = (e) => {
-      const saved = localStorage.getItem('theme');
-      if (!saved) {
-        setThemeState(e.matches ? 'dark' : 'light');
-      }
-    };
-
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
-  }, []);
+    const root = window.document.documentElement;
+    const colorObj = ACCENT_COLORS[accentColor] || ACCENT_COLORS.purple;
+    root.style.setProperty('--color-primary', colorObj.primary);
+    root.style.setProperty('--color-primary-glow', colorObj.glow);
+    localStorage.setItem('accentColor', accentColor);
+  }, [accentColor]);
 
   const toggleTheme = () => {
-    setThemeState(prev => (prev === 'dark' ? 'light' : 'dark'));
+    setThemeState((prev) => (prev === 'dark' ? 'light' : 'dark'));
   };
 
   const setTheme = (newTheme) => {
@@ -49,9 +54,27 @@ export const ThemeProvider = ({ children }) => {
     }
   };
 
+  const setAccentColor = (color) => {
+    if (ACCENT_COLORS[color]) {
+      setAccentColorState(color);
+    }
+  };
+
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, toggleTheme, isDark }}>
+    <ThemeContext.Provider
+      value={{
+        theme,
+        setTheme,
+        toggleTheme,
+        isDark,
+        accentColor,
+        setAccentColor,
+        ACCENT_COLORS,
+      }}
+    >
       {children}
     </ThemeContext.Provider>
   );
 };
+
+export default ThemeProvider;

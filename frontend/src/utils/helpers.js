@@ -23,6 +23,19 @@ export function formatTime(date = new Date()) {
 }
 
 /**
+ * Formats a date into a friendly Month Day, Year string (e.g. Aug 6, 2026)
+ */
+export function formatDate(date = new Date()) {
+  if (!date) return '';
+  const d = typeof date === 'string' || typeof date === 'number' ? new Date(date) : date;
+  return d.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+/**
  * Simulates a delay for async tasks
  */
 export const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));

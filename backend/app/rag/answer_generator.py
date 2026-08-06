@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 from langchain_openai import ChatOpenAI
 
 # Create one LLM instance
@@ -11,7 +14,6 @@ def generate_answer(prompt: str) -> str:
     """
     Generate answer using GPT-4o.
     """
-
     print("\n" + "=" * 100)
     print("PROMPT SENT TO GPT")
     print("=" * 100)
@@ -29,7 +31,6 @@ async def generate_answer_stream(prompt: str):
     """
     Generate answer stream using GPT-4o async iterator.
     """
-
     print("\n" + "=" * 100)
     print("PROMPT SENT TO GPT (STREAMING)")
     print("=" * 100)
@@ -39,4 +40,4 @@ async def generate_answer_stream(prompt: str):
     print("🤖 Streaming Prompt to GPT...")
     async for chunk in llm.astream(prompt):
         if chunk.content:
-            yield chunk.content
+            yield chunk.content

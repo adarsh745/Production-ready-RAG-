@@ -1,11 +1,3 @@
-# This file manages Hybrid Multi-Query Retrieval:
-# 1. Query Expansion / Multi-Query Generation
-# 2. Dense Vector Search (ChromaDB) + Sparse Keyword Search (BM25)
-# 3. Candidate Merging & Deduplication by (document_id, chunk_id)
-# 4. Reciprocal Rank Fusion (RRF)
-# 5. Cross Encoder Reranking
-
-
 from typing import List, Optional
 from pydantic import BaseModel
 from collections import defaultdict
@@ -27,7 +19,6 @@ class QueryVariations(BaseModel):
 
 
 def generate_query_variations(question: str):
-
     print("\n🧠 Generating Query Variations...")
 
     structured_llm = llm.with_structured_output(QueryVariations)
@@ -37,10 +28,9 @@ You are an expert information retrieval assistant optimizing vector search recal
 Generate 3 semantically different search queries for the user's question.
 
 Rules:
-- Include specific domain terms, exact technical keywords, and synonyms (e.g., UPI, Cards, Net Banking, Wallets, EMI, BNPL, Payment Options).
+- Include specific domain terms, exact technical keywords, education/experience terms, and synonyms.
 - Focus on extracting factual tables, lists, and direct feature specifications.
 - Keep each query under 15 words.
-- Do not repeat the exact original wording.
 - Focus on improving vector search recall.
 
 User Question:
@@ -48,13 +38,11 @@ User Question:
 """
 
     response = structured_llm.invoke(prompt)
-
     queries = [question] + response.queries
 
     print("\n" + "=" * 80)
     print("DEBUG: Generated Queries")
     print("=" * 80)
-
     for i, query in enumerate(queries, start=1):
         print(f"Query {i}: • {query}")
 
@@ -62,18 +50,14 @@ User Question:
 
 
 def execute_hybrid_search_for_queries(vector_retriever, queries, document_ids=None, persist_directory="./db/chroma_db"):
-
     all_merged_results = []
 
     for i, query in enumerate(queries, start=1):
-
         print("\n" + "=" * 80)
         print(f"SEARCHING FOR QUERY {i}: {query}")
         print("=" * 80)
 
-        # ---------------------------------------
         # 1. Dense Vector Search (ChromaDB)
-        # ---------------------------------------
         vector_docs = vector_retriever.invoke(query)
 
         print("\n---------------- Vector Results ----------------")
@@ -84,9 +68,7 @@ def execute_hybrid_search_for_queries(vector_retriever, queries, document_ids=No
             filename = doc.metadata.get("filename")
             print(f"V{idx}. [Doc: {doc_id} | Chunk: {chunk_id} | File: {filename}] {doc.page_content[:120].replace('\n', ' ')}")
 
-        # ---------------------------------------
         # 2. Sparse Keyword Search (BM25)
-        # ---------------------------------------
         bm25_docs = search_bm25(
             query=query,
             top_k=20,
@@ -102,9 +84,7 @@ def execute_hybrid_search_for_queries(vector_retriever, queries, document_ids=No
             filename = doc.metadata.get("filename")
             print(f"B{idx}. [Doc: {doc_id} | Chunk: {chunk_id} | File: {filename}] {doc.page_content[:120].replace('\n', ' ')}")
 
-        # ---------------------------------------
-        # 3. Merge Vector + BM25 & Deduplicate by (document_id, chunk_id)
-        # ---------------------------------------
+        # 3. Merge Vector + BM25 & Deduplicate
         merged_docs = []
         seen_keys = set()
 
@@ -130,7 +110,6 @@ def execute_hybrid_search_for_queries(vector_retriever, queries, document_ids=No
 
 
 def reciprocal_rank_fusion(results, k=60, user_query: str = ""):
-
     print("\n" + "=" * 80)
     print("🏆 Applying Reciprocal Rank Fusion (RRF)...")
     print("=" * 80)
@@ -138,7 +117,6 @@ def reciprocal_rank_fusion(results, k=60, user_query: str = ""):
     rrf_scores = defaultdict(float)
     document_map = {}
 
-    # Standard Reciprocal Rank Fusion: Score(d) = sum(1 / (k + rank))
     for docs in results:
         for rank, doc in enumerate(docs, start=1):
             d_id = str(doc.metadata.get("document_id") or "").strip()
@@ -148,7 +126,6 @@ def reciprocal_rank_fusion(results, k=60, user_query: str = ""):
             document_map[key] = doc
             rrf_scores[key] += 1.0 / (k + rank)
 
-    # Sort documents by total score (Highest first)
     ranked_items = sorted(
         rrf_scores.items(),
         key=lambda x: x[1],
@@ -156,7 +133,7 @@ def reciprocal_rank_fusion(results, k=60, user_query: str = ""):
     )
 
     print("\n---------------- RRF Ranking ----------------")
-    for index, (key, score) in enumerate(ranked_items[:10], start=1):
+    for index, (key, score) in enumerate(ranked_items[:12], start=1):
         doc = document_map[key]
         print(f"{index}. Score = {score:.5f} | Doc: {key[0]} | Chunk: {key[1]}")
         print(doc.page_content[:150].replace("\n", " "))
@@ -169,23 +146,18 @@ def reciprocal_rank_fusion(results, k=60, user_query: str = ""):
 def retrieve_documents(
     query: str,
     persist_directory: str = "./db/chroma_db",
-    k: int = 5,
+    k: int = 8,
     document_ids: Optional[List[str]] = None
 ):
     """
-    Hybrid Retrieval Pipeline combining Dense Vector Search + Sparse BM25 Keyword Search,
-    Candidate Merging & Deduplication, Reciprocal Rank Fusion (RRF), and Cross Encoder Reranking.
+    Hybrid Retrieval Pipeline: Vector + BM25, RRF, Cross-Encoder Reranking top_k=8.
     """
-
     print("\n" + "=" * 80)
     print("🚀 HYBRID MULTI-QUERY RETRIEVAL STARTED")
     print("=" * 80)
 
-    search_kwargs = {
-        "k": 20
-    }
+    search_kwargs = {"k": 25}
 
-    # Build Metadata Filter if document_ids provided
     if document_ids:
         valid_ids = list(dict.fromkeys([str(d).strip() for d in document_ids if d and str(d).strip()]))
         if valid_ids:
@@ -200,26 +172,15 @@ def retrieve_documents(
     else:
         print("🌍 Searching Across ALL Indexed Documents (No Metadata Filter)")
 
-    # ---------------------------------------
-    # Load ChromaDB VectorStore
-    # ---------------------------------------
     vectorstore = Chroma(
         persist_directory=persist_directory,
         embedding_function=get_embedding_model()
     )
 
-    vector_retriever = vectorstore.as_retriever(
-        search_kwargs=search_kwargs
-    )
+    vector_retriever = vectorstore.as_retriever(search_kwargs=search_kwargs)
 
-    # ---------------------------------------
-    # Step 1 : Generate Query Variations
-    # ---------------------------------------
     queries = generate_query_variations(query)
 
-    # ---------------------------------------
-    # Step 2 : Hybrid Search (Vector + BM25) & Candidate Merging
-    # ---------------------------------------
     hybrid_results = execute_hybrid_search_for_queries(
         vector_retriever=vector_retriever,
         queries=queries,
@@ -227,38 +188,16 @@ def retrieve_documents(
         persist_directory=persist_directory,
     )
 
-    # ---------------------------------------
-    # Step 3 : Reciprocal Rank Fusion (RRF)
-    # ---------------------------------------
     rrf_documents = reciprocal_rank_fusion(
         hybrid_results,
         k=60,
         user_query=query
     )
 
-    # ---------------------------------------
-    # Step 4 : Cross Encoder Reranking
-    # ---------------------------------------
-    print("\n" + "=" * 80)
-    print("---------------- Cross Encoder Ranking ----------------")
-    print("=" * 80)
-
     final_documents = rerank_documents(
         question=query,
         documents=rrf_documents,
         top_k=k
     )
-
-    print("\n" + "=" * 100)
-    print("FINAL HYBRID DOCUMENTS SENT TO GPT")
-    print("=" * 100)
-
-    for i, doc in enumerate(final_documents, start=1):
-        print(f"\nRank {i}")
-        print("-" * 80)
-        print(f"Doc ID: {doc.metadata.get('document_id')} | Chunk: {doc.metadata.get('chunk_id')} | File: {doc.metadata.get('filename')}")
-        print(doc.page_content[:700])
-
-    print(f"\n✅ Returning Top {len(final_documents)} Hybrid Documents")
 
     return final_documents
