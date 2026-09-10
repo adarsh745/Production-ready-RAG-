@@ -41,5 +41,5 @@ databases:
   # 3. Managed PostgreSQL Database
   - name: rag-postgres
     databaseName: rag_db
-    user: postgres
+    user: rag_db_user
     plan: free
