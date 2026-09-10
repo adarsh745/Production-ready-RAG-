@@ -16,10 +16,12 @@ export const PdfViewer = ({
   const [numPages, setNumPages] = useState(1);
   const iframeRef = useRef(null);
 
+  const backendBase = import.meta.env.VITE_BACKEND_URL || (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/\/api\/?$/, '') : '') || 'http://localhost:8000';
+
   const resolvedUrl = fileUrl
     ? fileUrl.startsWith('http')
       ? fileUrl
-      : `http://localhost:8000${fileUrl.startsWith('/') ? '' : '/'}${fileUrl}`
+      : `${backendBase}${fileUrl.startsWith('/') ? '' : '/'}${fileUrl}`
     : null;
 
   useEffect(() => {

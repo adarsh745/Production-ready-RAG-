@@ -24,7 +24,7 @@ export const PdfDrawer = ({ isOpen, onClose, sourceDoc }) => {
   if (!isOpen) return null;
 
   const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
-  const BACKEND_URL = 'http://localhost:8000';
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || API_BASE_URL.replace(/\/api\/?$/, '') || 'http://localhost:8000';
 
   const docId = sourceDoc?.document_id || sourceDoc?.id;
   const filename = sourceDoc?.filename || 'Document.pdf';
