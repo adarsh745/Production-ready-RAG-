@@ -16,7 +16,9 @@ class Settings:
     APP_NAME = "RAG Backend"
     APP_VERSION = "1.0.0"
 
-    LLM_PROVIDER = os.getenv("LLM_PROVIDER", "ollama").lower()
+    LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gemini").lower()
+    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+    GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
     OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
     OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:1.5b")
     OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o")
