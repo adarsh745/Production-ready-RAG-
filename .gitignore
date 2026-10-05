@@ -21,7 +21,8 @@ htmlcov/
 .env.*.local
 
 # Databases & Vector Stores
-db/
+/db/
+backend/db/
 chroma_db/
 *.sqlite3
 *.db
