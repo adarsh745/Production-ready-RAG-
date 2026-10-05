@@ -2,12 +2,7 @@ import json
 from dotenv import load_dotenv
 load_dotenv()
 
-from langchain_openai import ChatOpenAI
-
-llm = ChatOpenAI(
-    model="gpt-4o",
-    temperature=0.2
-)
+from app.utils.llm_utils import get_llm
 
 
 def generate_summary_and_questions(text_content: str, filename: str = "Document.pdf") -> dict:
@@ -60,8 +55,9 @@ Document Content Sample:
 """
 
     try:
+        llm = get_llm()
         response = llm.invoke(prompt)
-        raw_output = response.content.strip()
+        raw_output = (response.content if hasattr(response, 'content') else str(response)).strip()
 
         # Clean markdown code blocks if present
         if raw_output.startswith("```"):

@@ -6,9 +6,12 @@ from app.api.routes import document_route
 from app.api.routes import evaluation
 from app.api.routes import auth
 from app.api.routes import chat_history
+from app.api.routes import health
 
 api_router = APIRouter()
 
+api_router.include_router(health.router, prefix="/health", tags=["Health"])
+api_router.include_router(health.router, tags=["Health"])
 api_router.include_router(auth.router)
 api_router.include_router(upload.router)
 api_router.include_router(chat.router)

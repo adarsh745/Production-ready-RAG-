@@ -3,13 +3,6 @@ from app.services.chat_service import chat, chat_stream
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from app.rag.conversation_memory import clear_chat_history
-from langchain_openai import ChatOpenAI
-
-# Create one LLM instance
-llm = ChatOpenAI(
-    model="gpt-4o",
-    temperature=0
-)
 router = APIRouter(prefix="/chat", tags=["Chat"])
 
 

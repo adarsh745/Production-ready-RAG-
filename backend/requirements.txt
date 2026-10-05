@@ -69,10 +69,12 @@ jsonschema-specifications==2025.9.1
 kiwisolver==1.5.0
 kubernetes==36.0.3
 langchain-chroma==1.1.0
+langchain-community>=0.3.0
 langchain-core==1.4.9
 langchain-google-genai==4.2.7
 langchain-ollama==1.1.0
 langchain-protocol==0.0.18
+langchain-text-splitters>=0.3.0
 langdetect==1.0.9
 langsmith==0.10.2
 limits==5.8.0
@@ -214,3 +216,7 @@ xlsxwriter==3.2.9
 xxhash==3.8.1
 yarl==1.24.5
 zstandard==0.25.0
+langchain-openai>=0.1.0
+cloudinary>=1.36.0
+rank-bm25>=0.2.2
+sentence-transformers>=2.2.2

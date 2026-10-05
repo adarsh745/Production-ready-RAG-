@@ -1,15 +1,19 @@
+import os
 from typing import List, Optional
 from langchain_chroma import Chroma
 from app.rag.embeddings import get_embedding_model
+from app.core.config import settings
 
 
 def retrieve_documents(
     query: str,
-    persist_directory: str = "./db/chroma_db",
+    persist_directory: Optional[str] = None,
     document_ids: Optional[List[str]] = None,
 ):
+    if persist_directory is None:
+        persist_directory = os.getenv("CHROMA_PERSIST_DIR", settings.CHROMA_PERSIST_DIR)
 
-    print("\n🔍 Searching ChromaDB using Similarity Search...\n")
+    print("\n Searching ChromaDB using Similarity Search...\n")
 
     vectorstore = Chroma(
         persist_directory=persist_directory,
@@ -25,10 +29,10 @@ def retrieve_documents(
         if valid_ids:
             if len(valid_ids) == 1:
                 search_kwargs["filter"] = {"document_id": valid_ids[0]}
-                print(f"🎯 Metadata Filter Applied for Single Document: {valid_ids[0]}")
+                print(f" Metadata Filter Applied for Single Document: {valid_ids[0]}")
             else:
                 search_kwargs["filter"] = {"document_id": {"$in": valid_ids}}
-                print(f"🎯 Metadata Filter Applied for {len(valid_ids)} Documents: {valid_ids}")
+                print(f" Metadata Filter Applied for {len(valid_ids)} Documents: {valid_ids}")
 
     results = vectorstore.similarity_search_with_score(
         query=query,

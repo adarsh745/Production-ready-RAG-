@@ -1,43 +1,40 @@
 from dotenv import load_dotenv
 load_dotenv()
 
-from langchain_openai import ChatOpenAI
-
-# Create one LLM instance
-llm = ChatOpenAI(
-    model="gpt-4o",
-    temperature=0
-)
+from app.utils.llm_utils import get_llm
 
 
 def generate_answer(prompt: str) -> str:
     """
-    Generate answer using GPT-4o.
+    Generate answer using configured LLM.
     """
     print("\n" + "=" * 100)
-    print("PROMPT SENT TO GPT")
+    print("PROMPT SENT TO LLM")
     print("=" * 100)
     print(prompt)
     print("=" * 100)
 
-    print("🤖 Sending Prompt to GPT...")
+    print("[INFO] Sending Prompt to LLM...")
+    llm = get_llm()
     response = llm.invoke(prompt)
 
-    print("✅ Answer Generated Successfully")
-    return response.content
+    print("[SUCCESS] Answer Generated Successfully")
+    return response.content if hasattr(response, 'content') else str(response)
 
 
 async def generate_answer_stream(prompt: str):
     """
-    Generate answer stream using GPT-4o async iterator.
+    Generate answer stream using LLM async iterator.
     """
     print("\n" + "=" * 100)
-    print("PROMPT SENT TO GPT (STREAMING)")
+    print("PROMPT SENT TO LLM (STREAMING)")
     print("=" * 100)
     print(prompt)
     print("=" * 100)
 
-    print("🤖 Streaming Prompt to GPT...")
+    print("[INFO] Streaming Prompt to LLM...")
+    llm = get_llm()
     async for chunk in llm.astream(prompt):
-        if chunk.content:
-            yield chunk.content
+        content = chunk.content if hasattr(chunk, 'content') else str(chunk)
+        if content:
+            yield content

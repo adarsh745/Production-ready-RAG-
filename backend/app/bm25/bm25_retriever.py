@@ -1,11 +1,15 @@
+import os
 from typing import List, Optional
 from langchain_core.documents import Document
 from langchain_chroma import Chroma
 from app.rag.embeddings import get_embedding_model
 from app.bm25.bm25_index import bm25_manager
+from app.core.config import settings
 
 
-def refresh_bm25_index(persist_directory: str = "./db/chroma_db"):
+def refresh_bm25_index(persist_directory: Optional[str] = None):
+    if persist_directory is None:
+        persist_directory = os.getenv("CHROMA_PERSIST_DIR", settings.CHROMA_PERSIST_DIR)
     """
     Refresh the BM25 index by reading all current documents from ChromaDB.
     Called whenever a document is uploaded, deleted, or replaced.
@@ -31,7 +35,9 @@ def refresh_bm25_index(persist_directory: str = "./db/chroma_db"):
         bm25_manager.build_index([])
 
 
-def ensure_bm25_initialized(persist_directory: str = "./db/chroma_db"):
+def ensure_bm25_initialized(persist_directory: Optional[str] = None):
+    if persist_directory is None:
+        persist_directory = os.getenv("CHROMA_PERSIST_DIR", settings.CHROMA_PERSIST_DIR)
     """
     Ensure BM25 index is built on boot or first search request.
     """
@@ -43,8 +49,10 @@ def search_bm25(
     query: str,
     top_k: int = 20,
     document_ids: Optional[List[str]] = None,
-    persist_directory: str = "./db/chroma_db",
+    persist_directory: Optional[str] = None,
 ) -> List[Document]:
+    if persist_directory is None:
+        persist_directory = os.getenv("CHROMA_PERSIST_DIR", settings.CHROMA_PERSIST_DIR)
     """
     Search BM25 keyword index for top_k results matching query,
     applying optional metadata filtering by document_ids.

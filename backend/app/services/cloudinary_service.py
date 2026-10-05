@@ -1,12 +1,13 @@
+import os
 import cloudinary
 import cloudinary.uploader
 from io import BytesIO
 
-# Configure Cloudinary credentials provided by user
+# Configure Cloudinary credentials from environment variables
 cloudinary.config(
-    cloud_name="dgi8ryvl",
-    api_key="838218926839655",
-    api_secret="iPpEEk63-avSvIq2xxczw858DKw",
+    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.getenv("CLOUDINARY_API_KEY"),
+    api_secret=os.getenv("CLOUDINARY_API_SECRET"),
     secure=True
 )
 

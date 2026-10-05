@@ -2,13 +2,8 @@ import re
 from typing import Tuple
 from PIL import Image
 from pydantic import BaseModel, Field
-from langchain_openai import ChatOpenAI
-
-# Create LLM instance for table detection & Markdown conversion
-llm = ChatOpenAI(
-    model="gpt-4o",
-    temperature=0
-)
+import json
+from app.utils.llm_utils import get_llm
 
 
 class TableExtractionResult(BaseModel):
@@ -69,14 +64,30 @@ Return structured output:
 """
 
     try:
-        structured_llm = llm.with_structured_output(TableExtractionResult)
-        result = structured_llm.invoke(prompt)
+        llm = get_llm()
+        try:
+            structured_llm = llm.with_structured_output(TableExtractionResult)
+            result = structured_llm.invoke(prompt)
+            has_tables = result.has_tables
+            table_count = result.table_count
+            formatted_text = result.formatted_text
+        except Exception:
+            raw_resp = llm.invoke(prompt)
+            raw_text = raw_resp.content if hasattr(raw_resp, 'content') else str(raw_resp)
+            if "```" in raw_text:
+                raw_text = raw_text.split("```")[1]
+                if raw_text.startswith("json"):
+                    raw_text = raw_text[4:]
+            data = json.loads(raw_text.strip())
+            has_tables = data.get("has_tables", False)
+            table_count = data.get("table_count", 0)
+            formatted_text = data.get("formatted_text", raw_ocr_text)
 
-        if result.has_tables and result.table_count > 0:
-            print(f"  • Tables detected: {result.table_count}")
+        if has_tables and table_count > 0:
+            print(f"  • Tables detected: {table_count}")
             print(f"  • Converted table to Markdown")
             print(f"  • Merged OCR paragraphs")
-            return result.formatted_text.strip(), result.table_count
+            return formatted_text.strip(), table_count
         else:
             return raw_ocr_text, 0
 

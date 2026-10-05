@@ -1,27 +1,23 @@
+import os
+import json
 from typing import List, Optional
 from pydantic import BaseModel
 from collections import defaultdict
 from app.rag.reranker import rerank_documents
 from langchain_chroma import Chroma
 from app.rag.embeddings import get_embedding_model
-from langchain_openai import ChatOpenAI
 from app.bm25.bm25_retriever import search_bm25
-
-# Create one LLM instance
-llm = ChatOpenAI(
-    model="gpt-4o",
-    temperature=0
-)
-
+from app.core.config import settings
+from app.utils.llm_utils import get_llm
 
 class QueryVariations(BaseModel):
     queries: List[str]
 
 
 def generate_query_variations(question: str):
-    print("\n🧠 Generating Query Variations...")
+    print("\n[INFO] Generating Query Variations...")
 
-    structured_llm = llm.with_structured_output(QueryVariations)
+    llm = get_llm()
     prompt = f"""
 You are an expert information retrieval assistant optimizing vector search recall.
 
@@ -29,16 +25,37 @@ Generate 3 semantically different search queries for the user's question.
 
 Rules:
 - Include specific domain terms, exact technical keywords, education/experience terms, and synonyms.
-- Focus on extracting factual tables, lists, and direct feature specifications.
 - Keep each query under 15 words.
-- Focus on improving vector search recall.
+- Return ONLY valid JSON formatted as: {{"queries": ["query 1", "query 2", "query 3"]}}
 
 User Question:
 {question}
 """
 
-    response = structured_llm.invoke(prompt)
-    queries = [question] + response.queries
+    queries_list = []
+    try:
+        try:
+            structured_llm = llm.with_structured_output(QueryVariations)
+            response = structured_llm.invoke(prompt)
+            if hasattr(response, 'queries'):
+                queries_list = response.queries
+            elif isinstance(response, dict):
+                queries_list = response.get("queries", [])
+        except Exception:
+            raw_resp = llm.invoke(prompt)
+            raw_text = raw_resp.content if hasattr(raw_resp, 'content') else str(raw_resp)
+            if "```" in raw_text:
+                raw_text = raw_text.split("```")[1]
+                if raw_text.startswith("json"):
+                    raw_text = raw_text[4:]
+            raw_text = raw_text.strip()
+            data = json.loads(raw_text)
+            queries_list = data.get("queries", [])
+    except Exception as e:
+        print(f"[WARNING] Query variations fallback: {e}")
+        queries_list = []
+
+    queries = [question] + [q for q in queries_list if q and q != question]
 
     print("\n" + "=" * 80)
     print("DEBUG: Generated Queries")
@@ -49,7 +66,9 @@ User Question:
     return queries
 
 
-def execute_hybrid_search_for_queries(vector_retriever, queries, document_ids=None, persist_directory="./db/chroma_db"):
+def execute_hybrid_search_for_queries(vector_retriever, queries, document_ids=None, persist_directory=None):
+    if persist_directory is None:
+        persist_directory = os.getenv("CHROMA_PERSIST_DIR", settings.CHROMA_PERSIST_DIR)
     all_merged_results = []
 
     for i, query in enumerate(queries, start=1):
@@ -111,7 +130,7 @@ def execute_hybrid_search_for_queries(vector_retriever, queries, document_ids=No
 
 def reciprocal_rank_fusion(results, k=60, user_query: str = ""):
     print("\n" + "=" * 80)
-    print("🏆 Applying Reciprocal Rank Fusion (RRF)...")
+    print("[RRF] Applying Reciprocal Rank Fusion (RRF)...")
     print("=" * 80)
 
     rrf_scores = defaultdict(float)
@@ -145,15 +164,17 @@ def reciprocal_rank_fusion(results, k=60, user_query: str = ""):
 
 def retrieve_documents(
     query: str,
-    persist_directory: str = "./db/chroma_db",
+    persist_directory: Optional[str] = None,
     k: int = 8,
     document_ids: Optional[List[str]] = None
 ):
+    if persist_directory is None:
+        persist_directory = os.getenv("CHROMA_PERSIST_DIR", settings.CHROMA_PERSIST_DIR)
     """
     Hybrid Retrieval Pipeline: Vector + BM25, RRF, Cross-Encoder Reranking top_k=8.
     """
     print("\n" + "=" * 80)
-    print("🚀 HYBRID MULTI-QUERY RETRIEVAL STARTED")
+    print("[HYBRID RETRIEVAL] HYBRID MULTI-QUERY RETRIEVAL STARTED")
     print("=" * 80)
 
     search_kwargs = {"k": 25}
@@ -163,14 +184,14 @@ def retrieve_documents(
         if valid_ids:
             if len(valid_ids) == 1:
                 search_kwargs["filter"] = {"document_id": valid_ids[0]}
-                print(f"🎯 Metadata Filter Applied for Single Document: {valid_ids[0]}")
+                print(f"[FILTER] Metadata Filter Applied for Single Document: {valid_ids[0]}")
             else:
                 search_kwargs["filter"] = {"document_id": {"$in": valid_ids}}
-                print(f"🎯 Metadata Filter Applied for {len(valid_ids)} Documents: {valid_ids}")
+                print(f"[FILTER] Metadata Filter Applied for {len(valid_ids)} Documents: {valid_ids}")
         else:
-            print("🌍 No valid document_ids provided. Searching Across ALL Indexed Documents.")
+            print("[FILTER] No valid document_ids provided. Searching Across ALL Indexed Documents.")
     else:
-        print("🌍 Searching Across ALL Indexed Documents (No Metadata Filter)")
+        print("[FILTER] Searching Across ALL Indexed Documents (No Metadata Filter)")
 
     vectorstore = Chroma(
         persist_directory=persist_directory,

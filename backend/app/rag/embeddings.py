@@ -1,17 +1,21 @@
 from dotenv import load_dotenv
 load_dotenv()
 
-from langchain_openai import OpenAIEmbeddings
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+warnings.filterwarnings("ignore", message=".*LangChainDeprecationWarning.*")
 
-# Create a single embedding model instance and reuse it
-embedding_model = OpenAIEmbeddings(
-    model="text-embedding-3-small"
+from langchain_community.embeddings import HuggingFaceEmbeddings
+
+# Free local embedding model (runs on CPU/GPU without OpenAI API credits)
+embedding_model = HuggingFaceEmbeddings(
+    model_name="all-MiniLM-L6-v2"
 )
 
 
 def get_embedding_model():
     """
-    Return the OpenAI embedding model.
+    Return the local HuggingFace embedding model.
     """
     return embedding_model
 
