@@ -1,1 +1,1 @@
-# Automatic OCR Module for Scanned PDFs
+# Package marker for ocr

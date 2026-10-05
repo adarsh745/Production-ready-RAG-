@@ -1,1 +1,1 @@
-# BM25 Sparse Search Module
+# Package marker for bm25

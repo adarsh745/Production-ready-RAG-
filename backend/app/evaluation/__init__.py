@@ -1,1 +1,1 @@
-# RAGAS Evaluation Module
+# Package marker for evaluation
