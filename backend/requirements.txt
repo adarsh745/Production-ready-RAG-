@@ -194,6 +194,7 @@ rpds-py==2026.6.3
 rsa==4.9.1
 safetensors==0.8.0
 scipy==1.18.0
+sentence-transformers>=3.0.0
 selenium==4.41.0
 setuptools==82.0.0
 shellingham==1.5.4
