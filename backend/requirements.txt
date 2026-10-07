@@ -46,6 +46,7 @@ rank-bm25==0.2.2
 
 # PDF Parsing, OCR & Document Processing
 unstructured==0.18.32
+pi-heif
 pypdf==6.14.2
 pdfplumber==0.11.10
 pdf2image==1.17.0
