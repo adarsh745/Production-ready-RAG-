@@ -9,7 +9,7 @@ ENV PYTHONUNBUFFERED=1 \
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies (Tesseract OCR, Poppler for PDF rendering, OpenCV dependencies)
+# Install system dependencies (Tesseract OCR, Poppler for PDF rendering, OpenCV runtime, PostgreSQL client)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     tesseract-ocr \
     libtesseract-dev \
@@ -24,8 +24,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy requirements file
 COPY requirements.txt /app/requirements.txt
 
-# Install Python dependencies (ensuring CPU-only PyTorch without CUDA/NVIDIA packages)
-RUN pip install --no-cache-dir --extra-index-url https://download.pytorch.org/whl/cpu -r requirements.txt
+# Install Python dependencies in a single layer without pip cache and without bytecode compilation to save disk space
+RUN pip install --no-cache-dir --no-compile --extra-index-url https://download.pytorch.org/whl/cpu -r requirements.txt
 
 # Copy application source code
 COPY . /app
