@@ -2,59 +2,59 @@
 torch==2.5.1+cpu
 torchvision==0.20.1+cpu
 
-# Core Math & Numeric Stack
+# Core Math & Numeric Stack (Pinned for PyTorch 2.5.1 CPU compatibility)
 numpy==2.2.6
 scipy==1.13.1
 sympy==1.13.1
 
 # FastAPI & ASGI Web Server Stack
-fastapi==0.136.1
-uvicorn==0.47.0
-starlette==1.0.0
-pydantic==2.13.0
-pydantic-settings==2.14.2
-python-multipart==0.0.32
-aiofiles==25.1.0
+fastapi>=0.110.0,<0.116.0
+uvicorn>=0.28.0,<0.35.0
+starlette>=0.36.0,<0.46.0
+pydantic>=2.6.0,<2.11.0
+pydantic-settings>=2.2.0,<2.9.0
+python-multipart>=0.0.9
+aiofiles>=23.2.0
 
 # Database & ORM Stack
-SQLAlchemy==2.0.49
-psycopg2-binary==2.9.10
+SQLAlchemy>=2.0.28,<2.1.0
+psycopg2-binary>=2.9.9
 
 # Security & Authentication Stack
-PyJWT==2.13.0
-bcrypt==5.0.0
-passlib==1.7.4
+PyJWT>=2.8.0,<2.11.0
+bcrypt>=4.1.0,<4.4.0
+passlib>=1.7.4
 
 # LLM Framework & Provider SDKs
-langchain==1.4.2
-langchain-core==1.6.3
-langchain-community==0.4.2
-langchain-chroma==1.1.0
-langchain-google-genai==4.2.7
-langchain-openai==1.6.2
-langchain-ollama==1.1.0
-google-genai==2.11.0
-openai==3.16.2
+langchain>=0.1.10,<0.4.0
+langchain-core>=0.1.30,<0.4.0
+langchain-community>=0.0.25,<0.4.0
+langchain-chroma>=0.1.0,<0.3.0
+langchain-google-genai>=1.0.0,<2.1.0
+langchain-openai>=0.1.0,<0.4.0
+langchain-ollama>=0.1.0,<0.3.0
+google-genai>=0.1.0,<1.4.0
+openai>=1.14.0,<1.66.0
 
 # Vector Store, Embeddings & Reranking Stack
-chromadb==1.5.9
-sentence-transformers>=3.0.0
-transformers==5.14.1
-huggingface_hub==1.26.0
-safetensors==0.8.0
-rank-bm25==0.2.2
+chromadb>=0.4.24,<0.6.0
+sentence-transformers>=3.0.0,<4.0.0
+transformers>=4.40.0,<4.50.0
+huggingface-hub>=0.22.0,<0.29.0
+safetensors>=0.4.0
+rank-bm25>=0.2.2
 
 # PDF Parsing, OCR & Document Processing
-unstructured==0.18.32
+unstructured>=0.12.0,<0.17.0
 pi-heif
-pypdf==6.14.2
-pdfplumber==0.11.10
-pdf2image==1.17.0
-pypdfium2==5.12.1
-pytesseract==0.3.13
-pillow==12.3.0
+pypdf>=4.1.0,<6.0.0
+pdfplumber>=0.11.0,<0.15.0
+pdf2image>=1.17.0
+pypdfium2>=4.28.0,<5.0.0
+pytesseract>=0.3.10
+pillow>=10.2.0,<11.2.0
 
 # Utility & Network Stack
-python-dotenv==1.2.2
-requests==2.34.2
-httpx==0.28.1
+python-dotenv>=1.0.0
+requests>=2.31.0
+httpx>=0.27.0
