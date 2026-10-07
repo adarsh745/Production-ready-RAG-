@@ -1,6 +1,5 @@
-# PyTorch & TorchVision (CPU-Only)
+# PyTorch (CPU-Only - No torchvision needed)
 torch==2.5.1+cpu
-torchvision==0.20.1+cpu
 
 # Core Math & Numeric Stack (Pinned for PyTorch 2.5.1 CPU compatibility)
 numpy==2.2.6
@@ -25,16 +24,13 @@ PyJWT>=2.8.0,<2.11.0
 bcrypt>=4.1.0,<4.4.0
 passlib>=1.7.4
 
-# LLM Framework & Provider SDKs
+# LLM Framework & Provider SDKs (Gemini Primary Provider)
 langchain>=0.1.10,<0.4.0
 langchain-core>=0.1.30,<0.4.0
 langchain-community>=0.0.25,<0.4.0
 langchain-chroma>=0.1.0,<0.3.0
 langchain-google-genai>=1.0.0,<2.1.0
-langchain-openai>=0.1.0,<0.4.0
-langchain-ollama>=0.1.0,<0.3.0
 google-genai>=0.1.0,<1.4.0
-openai>=1.14.0,<1.66.0
 
 # Vector Store, Embeddings & Reranking Stack
 chromadb>=0.4.24,<0.6.0
@@ -48,7 +44,6 @@ rank-bm25>=0.2.2
 unstructured>=0.12.0,<0.17.0
 pi-heif
 pypdf>=4.1.0,<6.0.0
-pdfplumber>=0.11.0,<0.15.0
 pdf2image>=1.17.0
 pypdfium2>=4.28.0,<5.0.0
 pytesseract>=0.3.10

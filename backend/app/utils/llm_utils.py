@@ -1,5 +1,4 @@
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_openai import ChatOpenAI
 from app.core.config import settings
 
 
@@ -21,6 +20,7 @@ def get_llm():
             temperature=0
         )
     else:
+        from langchain_openai import ChatOpenAI
         return ChatOpenAI(
             model=settings.OPENAI_MODEL,
             temperature=0,
