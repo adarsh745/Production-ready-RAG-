@@ -85,7 +85,8 @@ def execute_hybrid_search_for_queries(vector_retriever, queries, document_ids=No
             doc_id = doc.metadata.get("document_id")
             chunk_id = doc.metadata.get("chunk_id")
             filename = doc.metadata.get("filename")
-            print(f"V{idx}. [Doc: {doc_id} | Chunk: {chunk_id} | File: {filename}] {doc.page_content[:120].replace('\n', ' ')}")
+            content_preview = doc.page_content[:120].replace("\n", " ")
+            print(f"V{idx}. [Doc: {doc_id} | Chunk: {chunk_id} | File: {filename}] {content_preview}")
 
         # 2. Sparse Keyword Search (BM25)
         bm25_docs = search_bm25(
@@ -101,7 +102,8 @@ def execute_hybrid_search_for_queries(vector_retriever, queries, document_ids=No
             doc_id = doc.metadata.get("document_id")
             chunk_id = doc.metadata.get("chunk_id")
             filename = doc.metadata.get("filename")
-            print(f"B{idx}. [Doc: {doc_id} | Chunk: {chunk_id} | File: {filename}] {doc.page_content[:120].replace('\n', ' ')}")
+            content_preview = doc.page_content[:120].replace("\n", " ")
+            print(f"B{idx}. [Doc: {doc_id} | Chunk: {chunk_id} | File: {filename}] {content_preview}")
 
         # 3. Merge Vector + BM25 & Deduplicate
         merged_docs = []
@@ -121,7 +123,8 @@ def execute_hybrid_search_for_queries(vector_retriever, queries, document_ids=No
         for idx, doc in enumerate(merged_docs, start=1):
             doc_id = doc.metadata.get("document_id")
             chunk_id = doc.metadata.get("chunk_id")
-            print(f"M{idx}. [Doc: {doc_id} | Chunk: {chunk_id}] {doc.page_content[:120].replace('\n', ' ')}")
+            content_preview = doc.page_content[:120].replace("\n", " ")
+            print(f"M{idx}. [Doc: {doc_id} | Chunk: {chunk_id}] {content_preview}")
 
         all_merged_results.append(merged_docs)
 
