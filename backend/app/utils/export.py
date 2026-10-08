@@ -1,3 +1,6 @@
+import json
+
+
 def export_chunks_to_json(chunks, filename="chunks_export.json"):
     """Export processed chunks to clean JSON format"""
     export_data = []
@@ -19,5 +22,7 @@ def export_chunks_to_json(chunks, filename="chunks_export.json"):
     print(f"✅ Exported {len(export_data)} chunks to {filename}")
     return export_data
 
-# Export your chunks
-json_data = export_chunks_to_json(processed_chunks)
+
+if __name__ == "__main__":
+    # Example usage script
+    pass
