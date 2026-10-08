@@ -18,13 +18,16 @@ from app.bm25.bm25_retriever import refresh_bm25_index
 from app.rag.document_analyzer import generate_summary_and_questions
 
 
-async def stream_upload_pipeline(file: UploadFile):
+async def stream_upload_pipeline(file_path: str, filename: str = None):
     """
     Real-time SSE Event Stream Generator for Document Ingestion Pipeline.
     Emits real-time progress events for every backend processing step.
     """
     def format_sse(data_dict: dict) -> str:
         return f"data: {json.dumps(data_dict)}\n\n"
+
+    if not filename:
+        filename = Path(file_path).name
 
     current_step = "upload"
     db = SessionLocal()
@@ -35,16 +38,15 @@ async def stream_upload_pipeline(file: UploadFile):
         yield format_sse({
             "step": "upload",
             "status": "running",
-            "message": f"Uploading {file.filename} to server..."
+            "message": f"Uploading {filename} to server..."
         })
         
-        file_path = await save_uploaded_file(file)
         file_size = Path(file_path).stat().st_size if Path(file_path).exists() else 0
         
         yield format_sse({
             "step": "upload",
             "status": "completed",
-            "file_name": file.filename,
+            "file_name": filename,
             "file_path": file_path,
             "file_size": file_size,
             "message": "File uploaded successfully"
@@ -61,7 +63,7 @@ async def stream_upload_pipeline(file: UploadFile):
         
         doc_record = document_service.create_document_record(
             db=db,
-            filename=file.filename,
+            filename=filename,
             filepath=file_path,
             file_size=file_size,
         )
@@ -186,7 +188,7 @@ async def stream_upload_pipeline(file: UploadFile):
         else:
             raw_doc_text = filename
 
-        analysis_result = generate_summary_and_questions(raw_doc_text, filename=file.filename)
+        analysis_result = generate_summary_and_questions(raw_doc_text, filename=filename)
         summary_text = analysis_result["summary"]
         suggested_qs = analysis_result["suggested_questions"]
         extracted_keywords = analysis_result["keywords"]
@@ -369,7 +371,7 @@ async def stream_upload_pipeline(file: UploadFile):
             "step": "finished",
             "status": "success",
             "document_id": document_id,
-            "filename": file.filename,
+            "filename": filename,
             "pages": total_pages,
             "chunks": len(documents),
             "summary": summary_text,

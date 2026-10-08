@@ -8,7 +8,7 @@ UPLOAD_FOLDER = "app/uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 
-async def save_uploaded_file(file: UploadFile):
+async def save_uploaded_file(file: UploadFile) -> str:
     
     print("this is from file utils to save file in folder", file.filename)
 
@@ -18,6 +18,7 @@ async def save_uploaded_file(file: UploadFile):
     )
 
     with open(file_path, "wb") as buffer:
-        buffer.write(await file.read())
+        while chunk := await file.read(1024 * 1024):
+            buffer.write(chunk)
 
     return file_path
