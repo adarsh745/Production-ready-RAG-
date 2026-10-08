@@ -31,19 +31,24 @@ def is_noise_element(element) -> bool:
     return False
 
 
-def partition_pdf_document(file_path: str):
+def partition_pdf_document(file_path: str, strategy: str = "auto"):
 
     print("=" * 50)
     print("📄 PARTITION STARTED")
     print(f"File Path: {file_path}")
+    print(f"Strategy: {strategy}")
 
-    raw_elements = partition_pdf(
-        filename=file_path,
-        strategy="hi_res",
-        infer_table_structure=True,
-        extract_image_block_types=["Image"],
-        extract_image_block_to_payload=True
-    )
+    kwargs = {
+        "filename": file_path,
+        "strategy": strategy,
+    }
+
+    if strategy == "hi_res":
+        kwargs["infer_table_structure"] = True
+        kwargs["extract_image_block_types"] = ["Image"]
+        kwargs["extract_image_block_to_payload"] = True
+
+    raw_elements = partition_pdf(**kwargs)
 
     print(f"✅ Raw Elements Extracted: {len(raw_elements)}")
 

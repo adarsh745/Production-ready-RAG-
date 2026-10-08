@@ -5,11 +5,11 @@ from app.rag.partition import partition_pdf_document
 # from app.rag.partition import partition_docx_document
 
 
-def parse_document(file_path: str):
+def parse_document(file_path: str, strategy: str = "auto"):
     extension = Path(file_path).suffix.lower()
 
     if extension == ".pdf":
-        return partition_pdf_document(file_path)
+        return partition_pdf_document(file_path, strategy=strategy)
 
     elif extension == ".docx":
         raise NotImplementedError("DOCX parsing not implemented yet")
