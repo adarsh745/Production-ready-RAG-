@@ -153,13 +153,15 @@ async def stream_upload_pipeline(file_path: str, filename: str = None):
         })
 
         if not scanned:
+            print("[PIPELINE] Searchable PDF detected with text layer -> Using deterministic strategy='fast' (pdfminer text extraction)")
             reader = PdfReader(file_path)
             total_pages = len(reader.pages)
-            elements = parse_document(file_path)
+            elements = parse_document(file_path, strategy="fast")
             chunks = create_chunks_by_title(elements)
             total_elements = len(elements)
             total_chunks = len(chunks)
         else:
+            print("[PIPELINE] Scanned PDF detected -> Using Tesseract OCR engine")
             total_pages = len(documents)
             total_elements = len(documents)
             total_chunks = len(documents)

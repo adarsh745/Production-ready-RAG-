@@ -31,12 +31,12 @@ def is_noise_element(element) -> bool:
     return False
 
 
-def partition_pdf_document(file_path: str, strategy: str = "auto"):
+def partition_pdf_document(file_path: str, strategy: str = "fast"):
 
     print("=" * 50)
     print("📄 PARTITION STARTED")
     print(f"File Path: {file_path}")
-    print(f"Strategy: {strategy}")
+    print(f"[STRATEGY] Selected PDF Partitioning Strategy: '{strategy}'")
 
     kwargs = {
         "filename": file_path,

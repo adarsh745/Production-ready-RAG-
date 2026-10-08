@@ -48,11 +48,12 @@ async def process_document(file_path: str, document_id: str):
 
     else:
         # Searchable PDF Branch: Use Existing Parser & Chunking Pipeline
+        print("[INGESTION] Searchable PDF detected with text layer -> Using deterministic strategy='fast' (pdfminer text extraction)")
         reader = PdfReader(file_path)
         total_pages = len(reader.pages)
 
         # Step 1 : Parse Document
-        elements = parse_document(file_path)
+        elements = parse_document(file_path, strategy="fast")
         print(f"✅ Partition Completed - {len(elements)} elements")
 
         # Step 2 : Chunking
